@@ -1,3 +1,5 @@
+
+
 <!doctype html>
 <html lang="es">
 <head>
@@ -13,13 +15,13 @@ button{padding:0 22px;border:0;border-radius:12px;background:#4778ff;color:white
 </style>
 </head><body><main>
 <h1>1+1</h1><p class="sub">Proxy web · Introduce una dirección</p>
-<form id="go"><input id="address" type="text" placeholder="https://ejemplo.com" autocomplete="url" required><button>Abrir web ↗</button></form>
+<form id="go"><input id="address" type="text" placeholder="" autocomplete="url" required><button>Abrir web ↗</button></form>
 <div class="status" id="status"></div>
 <p class="note">Pega una URL pública que tengas permiso para visitar. No introduzcas contraseñas ni datos privados. Algunas páginas bloquean proxies y pueden no funcionar.</p>
 </main>
 <script>
 /* CAMBIA esta dirección por la URL real de tu Cloudflare Worker. */
-const WORKER_URL = "https://1plus1-proxy.licelottegonzalez2019.workers.dev";
+const WORKER_URL = "";
 const form=document.querySelector('#go'), input=document.querySelector('#address'), status=document.querySelector('#status');
 form.addEventListener('submit',e=>{
  e.preventDefault();
@@ -29,6 +31,350 @@ form.addEventListener('submit',e=>{
   const u=new URL(raw); if(!['http:','https:'].includes(u.protocol))throw Error();
   const key=prompt("Introduce la clave del proxy:"); if(!key)return;
   location.href=WORKER_URL.replace(/\/$/,"")+"/proxy?url="+encodeURIComponent(u.href)+"&key="+encodeURIComponent(key);
- }catch(_){status.textContent="Escribe una URL válida, por ejemplo https://example.com";}
+ }catch(_){status.textContent="Escribe una URL válida, por ejemplo ";}
 });
 </script></body></html>
+
+…
+¡Perfecto! Ahora sí podemos mejorar tu navegador 1+1. He preparado una versión completa con diseño parecido a Chrome, pestañas, marcadores, historial y botones de navegación.
+
+Vamos a sustituir únicamente tu index.html. No cambies el Worker de Cloudflare.
+
+Nuevo index.html
+Copia todo este código y pégalo en tu archivo de GitHub:
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>1+1 Browser</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#202124;color:#eee;
+ font:14px Arial,sans-serif;height:100vh;
+ display:flex;flex-direction:column;overflow:hidden
+}
+.tabs{
+ height:43px;background:#171717;display:flex;
+ align-items:center;padding:5px 8px;gap:6px
+}
+.tab{
+ background:#303134;padding:10px 18px;
+ border-radius:10px 10px 0 0;cursor:pointer;
+ max-width:180px;overflow:hidden;white-space:nowrap
+}
+.tab.active{background:#35363a}
+.newtab{
+ border:0;background:none;color:white;font-size:22px;
+ cursor:pointer;padding:4px 10px
+}
+.toolbar{
+ background:#303134;padding:9px;
+ display:flex;gap:7px;align-items:center
+}
+.tool{
+ background:#3c4043;color:white;border:0;
+ border-radius:50%;width:36px;height:36px;
+ cursor:pointer;font-size:17px
+}
+#address{
+ flex:1;min-width:50px;border:0;outline:0;
+ background:#202124;color:white;
+ border-radius:22px;padding:12px 17px;font-size:15px
+}
+.go{
+ background:#8ab4f8;color:#202124;border:0;
+ border-radius:20px;padding:0 17px;
+ font-weight:bold;cursor:pointer
+}
+.bookmarks{
+ background:#292a2d;padding:9px;
+ display:flex;gap:14px;overflow-x:auto
+}
+.bookmarks button{
+ background:none;border:0;color:#ddd;
+ cursor:pointer;white-space:nowrap
+}
+#pages{flex:1;position:relative;background:#fff}
+.page{display:none;width:100%;height:100%;border:0}
+.page.active{display:block}
+.home{
+ height:100%;background:#202124;color:white;
+ display:flex;align-items:center;justify-content:center;
+ flex-direction:column;padding:20px
+}
+.home h1{font-size:65px;margin:0 0 25px}
+.home input{
+ width:min(600px,95%);padding:17px;
+ border:0;border-radius:30px;font-size:16px;
+ background:#303134;color:white
+}
+.links{display:flex;gap:20px;flex-wrap:wrap;
+ justify-content:center;margin-top:30px}
+.links button{
+ background:#303134;color:white;border:0;
+ border-radius:12px;padding:18px;cursor:pointer
+}
+#status{
+ background:#202124;color:#aaa;padding:5px 12px;
+ font-size:12px
+}
+</style>
+</head>
+
+<body>
+
+<div class="tabs" id="tabs">
+ <button class="newtab" onclick="newTab()">+</button>
+</div>
+
+<div class="toolbar">
+ <button class="tool" onclick="back()">‹</button>
+ <button class="tool" onclick="forward()">›</button>
+ <button class="tool" onclick="reload()">↻</button>
+ <button class="tool" onclick="home()">⌂</button>
+ <input id="address" placeholder="Buscar o escribir una dirección web">
+ <button class="go" onclick="navigate()">Abrir</button>
+</div>
+
+<div class="bookmarks">
+ <button onclick="openSite('https://www.google.com')">Google</button>
+ <button onclick="openSite('https://www.wikipedia.org')">Wikipedia</button>
+ <button onclick="openSite('https://www.youtube.com')">YouTube</button>
+ <button onclick="openSite('https://www.bing.com')">Bing</button>
+ <button onclick="saveBookmark()">☆ Guardar página</button>
+ <button onclick="showBookmarks()">Marcadores</button>
+ <button onclick="showHistory()">Historial</button>
+</div>
+
+<div id="pages"></div>
+<div id="status">1+1 Browser listo</div>
+
+<script>
+const WORKER_URL =
+ "https://1plus1-proxy.licelottegonzalez2019.workers.dev";
+
+let tabs=[];
+let active=0;
+
+function newTab(){
+ const id=tabs.length;
+ const page=document.createElement("div");
+ page.className="page";
+
+ const frame=document.createElement("iframe");
+ frame.className="page";
+ frame.style.display="none";
+ frame.style.width="100%";
+ frame.style.height="100%";
+ frame.style.border="0";
+
+ const start=document.createElement("div");
+ start.className="home";
+ start.innerHTML=`
+ <h1>1+1</h1>
+ <input placeholder="Buscar o escribir una dirección"
+ id="search${id}">
+ <div class="links">
+ <button onclick="openSite('https://www.google.com')">Google</button>
+ <button onclick="openSite('https://www.youtube.com')">YouTube</button>
+ <button onclick="openSite('https://www.wikipedia.org')">Wikipedia</button>
+ </div>`;
+
+ page.appendChild(start);
+ page.appendChild(frame);
+ document.getElementById("pages").appendChild(page);
+
+ tabs.push({
+  page,frame,start,url:"",title:"Nueva pestaña"
+ });
+
+ page.querySelector("input").addEventListener("keydown",e=>{
+  if(e.key==="Enter")navigateValue(e.target.value);
+ });
+
+ renderTabs();
+ switchTab(id);
+}
+
+function renderTabs(){
+ const container=document.getElementById("tabs");
+ container.innerHTML=
+ '<button class="newtab" onclick="newTab()">+</button>';
+
+ tabs.forEach((tab,i)=>{
+  const button=document.createElement("div");
+  button.className="tab"+(i===active?" active":"");
+  button.textContent=tab.title;
+  button.onclick=()=>switchTab(i);
+  container.appendChild(button);
+ });
+}
+
+function switchTab(i){
+ active=i;
+ tabs.forEach((tab,n)=>{
+  tab.page.style.display=n===i?"block":"none";
+ });
+ document.getElementById("address").value=
+ tabs[i].url||"";
+ renderTabs();
+}
+
+function navigate(){
+ navigateValue(document.getElementById("address").value);
+}
+
+function navigateValue(value){
+ if(!value.trim())return;
+
+ let url=value.trim();
+
+ if(!/^https?:\/\//i.test(url)){
+  url=url.includes(".")?
+   "https://"+url:
+   "https://www.google.com/search?q="+
+   encodeURIComponent(url);
+ }
+
+ try{
+  const target=new URL(url);
+  if(!["http:","https:"].includes(target.protocol))
+   throw Error();
+
+  const key=sessionStorage.getItem("proxyKey")||
+   prompt("Introduce tu clave del proxy:");
+
+  if(!key)return;
+
+  sessionStorage.setItem("proxyKey",key);
+
+  const proxy=WORKER_URL+"/proxy?url="+
+   encodeURIComponent(target.href)+
+   "&key="+encodeURIComponent(key);
+
+  const tab=tabs[active];
+  tab.url=target.href;
+  tab.title=target.hostname;
+  tab.start.style.display="none";
+  tab.frame.style.display="block";
+  tab.frame.src=proxy;
+
+  document.getElementById("address").value=target.href;
+  document.getElementById("status").textContent=
+   "Abriendo "+target.hostname;
+
+  saveHistory(target.href);
+  renderTabs();
+
+ }catch(e){
+  document.getElementById("status").textContent=
+   "Dirección no válida";
+ }
+}
+
+function openSite(url){
+ navigateValue(url);
+}
+
+function home(){
+ const tab=tabs[active];
+ tab.frame.src="about:blank";
+ tab.frame.style.display="none";
+ tab.start.style.display="flex";
+ tab.url="";
+ tab.title="Nueva pestaña";
+ document.getElementById("address").value="";
+ renderTabs();
+}
+
+function reload(){
+ const frame=tabs[active].frame;
+ if(frame.src)frame.src=frame.src;
+}
+
+function back(){
+ try{
+  tabs[active].frame.contentWindow.history.back();
+ }catch(e){}
+}
+
+function forward(){
+ try{
+  tabs[active].frame.contentWindow.history.forward();
+ }catch(e){}
+}
+
+function saveHistory(url){
+ let history=JSON.parse(
+  localStorage.getItem("history1plus1")||"[]"
+ );
+ history.unshift(url);
+ history=history.slice(0,100);
+ localStorage.setItem("history1plus1",
+  JSON.stringify(history));
+}
+
+function saveBookmark(){
+ const url=tabs[active].url;
+ if(!url){
+  alert("Primero abre una página");
+  return;
+ }
+ let list=JSON.parse(
+  localStorage.getItem("bookmarks1plus1")||"[]"
+ );
+ if(!list.includes(url))list.push(url);
+ localStorage.setItem("bookmarks1plus1",
+  JSON.stringify(list));
+ alert("Página guardada en marcadores");
+}
+
+function showBookmarks(){
+ let list=JSON.parse(
+  localStorage.getItem("bookmarks1plus1")||"[]"
+ );
+ if(!list.length){
+  alert("Todavía no tienes marcadores");
+  return;
+ }
+ let choice=prompt(
+  "Tus marcadores:\n"+
+  list.map((x,i)=>(i+1)+". "+x).join("\n")+
+  "\n\nEscribe el número para abrirlo"
+ );
+ const index=Number(choice)-1;
+ if(list[index])openSite(list[index]);
+}
+
+function showHistory(){
+ let list=JSON.parse(
+  localStorage.getItem("history1plus1")||"[]"
+ );
+ if(!list.length){
+  alert("Todavía no tienes historial");
+  return;
+ }
+ let choice=prompt(
+  "Historial:\n"+
+  list.slice(0,20).map((x,i)=>(i+1)+". "+x).join("\n")+
+  "\n\nEscribe el número para abrirlo"
+ );
+ const index=Number(choice)-1;
+ if(list[index])openSite(list[index]);
+}
+
+document.getElementById("address").addEventListener(
+ "keydown",e=>{
+  if(e.key==="Enter")navigate();
+ }
+);
+
+newTab();
+</script>
+</body>
+</html>
