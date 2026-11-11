@@ -1,0 +1,40 @@
+# 1+1 Proxy — GitHub + servidor Worker
+
+**Importante:** GitHub Pages solo aloja archivos estáticos; no puede ejecutar el servidor proxy. Este proyecto usa GitHub Pages para la interfaz y Cloudflare Worker como backend. El código queda guardado en tu repositorio GitHub.
+
+## A. Subir a GitHub desde Chromebook
+
+1. Entra en https://github.com/new e inicia sesión.
+2. Crea un repositorio llamado `1plus1-proxy` (puede ser público).
+3. En el repositorio pulsa **Add file → Upload files**.
+4. Sube `index.html` y `worker.js` desde esta carpeta y pulsa **Commit changes**.
+
+## B. Publicar la interfaz con GitHub Pages
+
+1. En el repositorio abre **Settings → Pages**.
+2. En **Build and deployment**, elige **Deploy from a branch**.
+3. Selecciona la rama `main` y la carpeta `/ (root)`, y pulsa **Save**.
+4. GitHub te mostrará la URL pública de Pages.
+
+## C. Publicar el backend
+
+1. Entra en https://dash.cloudflare.com/ → **Workers & Pages** → **Create Worker**.
+2. Crea un Worker llamado `1plus1-proxy`.
+3. En **Edit code**, pega el contenido de `worker.js` y pulsa **Deploy**.
+4. En **Settings → Variables and Secrets**, crea un secreto `PROXY_KEY` con una clave larga y privada.
+5. Copia la URL `https://...workers.dev` del Worker.
+
+## D. Conectar GitHub Pages con el Worker
+
+1. En GitHub abre `index.html` → icono del lápiz (**Edit**).
+2. Busca `const WORKER_URL = ...` y sustituye el valor por la URL real de tu Worker.
+3. Pulsa **Commit changes**. Espera a que GitHub Pages publique los cambios.
+
+Abre la URL de GitHub Pages. Pega una URL y, cuando lo pida, introduce la misma clave configurada como `PROXY_KEY`.
+
+## Seguridad y límites
+
+- No publiques ni escribas `PROXY_KEY` dentro de GitHub ni dentro de `index.html`.
+- No introduzcas contraseñas, datos bancarios ni información privada.
+- Este es un proxy básico de demostración. Sitios con login, streaming, websockets, protecciones anti-bot o políticas contra proxies pueden no funcionar.
+- No garantiza eludir bloqueos escolares, empresariales, controles parentales ni restricciones legales. Úsalo solo con destinos permitidos.
